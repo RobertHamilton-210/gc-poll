@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GC Performance Assessment — North Central HPM Poll</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', 'Inter', sans-serif;
+    background: #FAF8F7;
+    color: #403E3C;
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+  .poll-wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    background: #FAF8F7;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #DEDAD7;
+  }
+  .poll-header {
+    background: #21201F;
+    padding: 24px 28px 20px;
+  }
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9D9893;
+    margin-bottom: 5px;
+  }
+  .poll-header h1 { font-size: 20px; font-weight: 500; color: #fff; margin-bottom: 5px; }
+  .poll-header p { font-size: 13px; color: #9D9893; line-height: 1.55; }
+  .progress-bar-wrap { height: 3px; background: #DEDAD7; }
+  .progress-bar-fill { height: 3px; background: #0040E6; transition: width 0.3s; width: 0%; }
+  .poll-body { padding: 20px 28px 28px; }
+  .section-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase;
+    color: #0040E6; padding: 18px 0 9px; border-bottom: 1px solid #DEDAD7; margin-bottom: 14px;
+  }
+  .q-block { padding: 13px 0; border-bottom: 1px solid #ECE9E7; }
+  .q-block:last-child { border-bottom: none; }
+  .q-num { font-size: 11px; color: #9D9893; font-weight: 500; margin-bottom: 3px; }
+  .q-text { font-size: 14px; color: #21201F; font-weight: 500; line-height: 1.45; margin-bottom: 10px; }
+  .q-sub { font-size: 12px; color: #9D9893; margin-top: -6px; margin-bottom: 10px; line-height: 1.45; }
+
+  /* Vendor select */
+  .vendor-select {
+    width: 100%; padding: 9px 32px 9px 12px; font-size: 13px;
+    border: 1px solid #DEDAD7; border-radius: 6px; background: #fff; color: #403E3C;
+    appearance: none; font-family: inherit; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239D9893' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+  }
+  .vendor-select:focus { outline: 2px solid #0040E6; outline-offset: 1px; }
+
+  /* Name input */
+  .name-input {
+    width: 100%; padding: 9px 12px; font-size: 13px;
+    border: 1px solid #DEDAD7; border-radius: 6px; background: #fff; color: #403E3C; font-family: inherit;
+  }
+  .name-input:focus { outline: 2px solid #0040E6; outline-offset: 1px; }
+
+  /* Stars */
+  .stars { display: flex; gap: 5px; align-items: center; }
+  .star-btn {
+    width: 32px; height: 32px; border: none; background: transparent; cursor: pointer;
+    font-size: 24px; color: #DEDAD7; transition: color 0.1s; line-height: 1; padding: 0;
+  }
+  .star-btn.filled { color: #0040E6; }
+  .star-btn.hovered { color: #709AF1; }
+  .stars-label { font-size: 12px; color: #9D9893; margin-left: 8px; min-width: 90px; }
+
+  /* Frequency / pill buttons */
+  .freq-scale { display: flex; gap: 7px; flex-wrap: wrap; }
+  .freq-btn {
+    padding: 6px 13px; border: 1px solid #DEDAD7; border-radius: 6px;
+    background: #fff; font-size: 12px; color: #403E3C; cursor: pointer; font-family: inherit;
+    transition: all 0.12s; white-space: nowrap;
+  }
+  .freq-btn:hover { border-color: #0040E6; color: #0040E6; }
+  .freq-btn.selected { background: #0040E6; border-color: #0040E6; color: #fff; }
+
+  .pill-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill-btn {
+    padding: 6px 16px; border: 1px solid #DEDAD7; border-radius: 20px;
+    background: #fff; font-size: 13px; color: #403E3C; cursor: pointer; font-family: inherit;
+    transition: all 0.12s;
+  }
+  .pill-btn:hover { border-color: #0040E6; color: #0040E6; }
+  .pill-btn.selected { background: #0040E6; border-color: #0040E6; color: #fff; }
+
+  /* Recommendation */
+  .rec-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .rec-btn {
+    padding: 7px 15px; border: 1.5px solid #DEDAD7; border-radius: 6px;
+    background: #fff; font-size: 12px; color: #403E3C; cursor: pointer; font-family: inherit; font-weight: 500;
+    transition: all 0.12s;
+  }
+  .rec-btn.rec-keep.selected { background: #EBF5EE; border-color: #007F5E; color: #007F5E; }
+  .rec-btn.rec-train.selected { background: #DFEAF8; border-color: #0040E6; color: #0040E6; }
+  .rec-btn.rec-cut.selected { background: #FAE4E4; border-color: #C34143; color: #C34143; }
+
+  /* Textarea */
+  .poll-textarea {
+    width: 100%; border: 1px solid #DEDAD7; border-radius: 6px; padding: 10px 12px;
+    font-size: 13px; color: #403E3C; background: #fff; resize: vertical; min-height: 80px;
+    font-family: inherit; line-height: 1.5;
+  }
+  .poll-textarea:focus { outline: 2px solid #0040E6; outline-offset: 1px; }
+  .poll-textarea::placeholder { color: #9D9893; }
+
+  /* Submit row */
+  .submit-row { display: flex; justify-content: flex-end; padding-top: 22px; gap: 12px; align-items: center; }
+  .submit-note { font-size: 12px; color: #9D9893; flex: 1; }
+  .btn-submit {
+    background: #0040E6; color: #fff; border: none; border-radius: 6px;
+    padding: 10px 24px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit;
+  }
+  .btn-submit:hover { background: #002FC0; }
+  .btn-submit:disabled { background: #DEDAD7; color: #9D9893; cursor: not-allowed; }
+
+  /* Confirm */
+  .confirm-box {
+    display: none; background: #EBF5EE; border: 1px solid #007F5E; border-radius: 8px;
+    padding: 16px 20px; margin-top: 16px; text-align: center;
+    font-size: 14px; color: #007F5E; font-weight: 500;
+  }
+</style>
+</head>
+<body>
+<div class="poll-wrap">
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar"></div></div>
+  <div class="poll-header">
+    <div class="eyebrow">HPM Feedback — Trade Partner Review</div>
+    <h1>GC Performance Assessment</h1>
+    <p>Rate each vendor you've worked with on IBB projects. Your input will be presented directly to the Trade Partner manager team. Takes about 3–4 minutes per vendor.</p>
+  </div>
+  <div class="poll-body">
+
+    <div class="section-label">Respondent & vendor</div>
+
+    <div class="q-block">
+      <div class="q-num">Setup</div>
+      <div class="q-text">Your name</div>
+      <input type="text" class="name-input" id="hpmName" placeholder="e.g. Matt Bohlinger" />
+    </div>
+
+    <div class="q-block">
+      <div class="q-num">Q1 of 10</div>
+      <div class="q-text">Which GC are you rating?</div>
+      <div class="q-sub">IBB / remotely-managed vendors active across North Central non-core markets (CHI, IL Other, IN Other, KY Other).</div>
+      <select class="vendor-select" id="vendorSelect" onchange="updateProgress()">
+        <option value="">— Select a vendor —</option>
+          <option>Charter Construction</option>
+          <option>CheckSammy</option>
+          <option>DMV Renovation</option>
+          <option>Epic Construction</option>
+          <option>Innovative Field Services</option>
+          <option>Langston Property Maintenance Services</option>
+          <option>Lessen</option>
+          <option>Lula</option>
+          <option>MCS</option>
+          <option>MH Home</option>
+          <option>My Build Core</option>
+          <option>National Maintenance Brokers</option>
+          <option>QuickFix</option>
+          <option>Rappa</option>
+          <option>Remi Roofing</option>
+          <option>Tavi (onboarding)</option>
+          <option>Top 10 Solutions</option>
+          <option>United Vendors Group</option>
+          <option>Velociti (onboarding)</option>
+          <option>Vintera</option>
+          <option>Zeven (maintenance only)</option>
+      </select>
+    </div>
+
+    <div class="section-label">Communication & responsiveness</div>
+
+    <div class="q-block">
+      <div class="q-num">Q2 of 10</div>
+      <div class="q-text">How responsive is this GC to calls, texts, or portal messages?</div>
+      <div class="stars" id="stars-comm">
+        <button class="star-btn" onclick="setStar('comm',1)" onmouseover="hoverStar('comm',1)" onmouseout="resetHover('comm')">★</button>
+        <button class="star-btn" onclick="setStar('comm',2)" onmouseover="hoverStar('comm',2)" onmouseout="resetHover('comm')">★</button>
+        <button class="star-btn" onclick="setStar('comm',3)" onmouseover="hoverStar('comm',3)" onmouseout="resetHover('comm')">★</button>
+        <button class="star-btn" onclick="setStar('comm',4)" onmouseover="hoverStar('comm',4)" onmouseout="resetHover('comm')">★</button>
+        <button class="star-btn" onclick="setStar('comm',5)" onmouseover="hoverStar('comm',5)" onmouseout="resetHover('comm')">★</button>
+        <span class="stars-label" id="label-comm">Not rated</span>
+      </div>
+    </div>
+
+    <div class="q-block">
+      <div class="q-num">Q3 of 10</div>
+      <div class="q-text">How consistently does this GC upload required project photos on schedule?</div>
+      <div class="freq-scale" id="freq-photos">
+        <button class="freq-btn" onclick="setFreq('photos',this)">Always</button>
+        <button class="freq-btn" onclick="setFreq('photos',this)">Usually</button>
+        <button class="freq-btn" onclick="setFreq('photos',this)">Sometimes</button>
+        <button class="freq-btn" onclick="setFreq('photos',this)">Rarely</button>
+        <button class="freq-btn" onclick="setFreq('photos',this)">Never</button>
+      </div>
+    </div>
+
+    <div class="section-label">Schedule adherence & execution</div>
+
+    <div class="q-block">
+      <div class="q-num">Q4 of 10</div>
+      <div class="q-text">Does this GC complete work within the agreed project timeline?</div>
+      <div class="freq-scale" id="freq-sched">
+        <button class="freq-btn" onclick="setFreq('sched',this)">Always</button>
+        <button class="freq-btn" onclick="setFreq('sched',this)">Usually</button>
+        <button class="freq-btn" onclick="setFreq('sched',this)">Sometimes</button>
+        <button class="freq-btn" onclick="setFreq('sched',this)">Rarely</button>
+        <button class="freq-btn" onclick="setFreq('sched',this)">Never</button>
+      </div>
+    </div>
+
+    <div class="q-block">
+      <div class="q-num">Q5 of 10</div>
+      <div class="q-text">How accurately does this GC report progress — does what they claim match what you observe on walks or in photos?</div>
+      <div class="pill-group" id="pill-progress">
+        <button class="pill-btn" onclick="setPill('progress',this)">Consistently accurate</button>
+        <button class="pill-btn" onclick="setPill('progress',this)">Occasionally overstated</button>
+        <button class="pill-btn" onclick="setPill('progress',this)">Often overstated</button>
+        <button class="pill-btn" onclick="setPill('progress',this)">Cannot tell</button>
+      </div>
+    </div>
+
+    <div class="section-label">Workmanship & quality control</div>
+
+    <div class="q-block">
+      <div class="q-num">Q6 of 10</div>
+      <div class="q-text">Rate the overall quality of finished work from this GC.</div>
+      <div class="stars" id="stars-quality">
+        <button class="star-btn" onclick="setStar('quality',1)" onmouseover="hoverStar('quality',1)" onmouseout="resetHover('quality')">★</button>
+        <button class="star-btn" onclick="setStar('quality',2)" onmouseover="hoverStar('quality',2)" onmouseout="resetHover('quality')">★</button>
+        <button class="star-btn" onclick="setStar('quality',3)" onmouseover="hoverStar('quality',3)" onmouseout="resetHover('quality')">★</button>
+        <button class="star-btn" onclick="setStar('quality',4)" onmouseover="hoverStar('quality',4)" onmouseout="resetHover('quality')">★</button>
+        <button class="star-btn" onclick="setStar('quality',5)" onmouseover="hoverStar('quality',5)" onmouseout="resetHover('quality')">★</button>
+        <span class="stars-label" id="label-quality">Not rated</span>
+      </div>
+    </div>
+
+    <div class="q-block">
+      <div class="q-num">Q7 of 10</div>
+      <div class="q-text">Does this GC participate in Navigate AI walkthroughs and address flagged items without needing repeated follow-up?</div>
+      <div class="pill-group" id="pill-navai">
+        <button class="pill-btn" onclick="setPill('navai',this)">Yes, proactively</button>
+        <button class="pill-btn" onclick="setPill('navai',this)">Yes, when reminded</button>
+        <button class="pill-btn" onclick="setPill('navai',this)">Inconsistently</button>
+        <button class="pill-btn" onclick="setPill('navai',this)">No</button>
+      </div>
+    </div>
+
+    <div class="section-label">On-site professionalism</div>
+
+    <div class="q-block">
+      <div class="q-num">Q8 of 10</div>
+      <div class="q-text">How would you describe this GC's QC walk behavior — are they prepared, cooperative, and do they resolve findings promptly?</div>
+      <div class="pill-group" id="pill-qc">
+        <button class="pill-btn" onclick="setPill('qc',this)">Excellent — prepared, resolves promptly</button>
+        <button class="pill-btn" onclick="setPill('qc',this)">Adequate — cooperative, slow to resolve</button>
+        <button class="pill-btn" onclick="setPill('qc',this)">Problematic — defensive or dismissive</button>
+        <button class="pill-btn" onclick="setPill('qc',this)">Has not shown up for QC walk</button>
+      </div>
+    </div>
+
+    <div class="section-label">Overall assessment</div>
+
+    <div class="q-block">
+      <div class="q-num">Q9 of 10</div>
+      <div class="q-text">What is your recommendation for this vendor going forward?</div>
+      <div class="rec-group">
+        <button class="rec-btn rec-keep" onclick="setRec('keep')">✓ Keep — performing well</button>
+        <button class="rec-btn rec-train" onclick="setRec('train')">↑ Keep with coaching needed</button>
+        <button class="rec-btn rec-cut" onclick="setRec('cut')">✕ Remove from program</button>
+      </div>
+    </div>
+
+    <div class="q-block">
+      <div class="q-num">Q10 of 10</div>
+      <div class="q-text">Any specific examples, incidents, or context the Trade Partner team should know about?</div>
+      <div class="q-sub">Optional — keep it factual. This will be shared directly with the manager team.</div>
+      <textarea class="poll-textarea" id="openText" placeholder="e.g. No-showed on QC walk on 4/12, refused to upload photos for 3 weeks, contradicted progress claim during field visit on 3/30…" oninput="updateProgress()"></textarea>
+    </div>
+
+    <!-- Test entry flag -->
+    <div style="margin-top:18px; padding:12px 14px; background:#FFF8E7; border:1px solid #F0D080; border-radius:6px; display:flex; align-items:center; gap:10px;">
+      <input type="checkbox" id="testEntry" style="width:16px;height:16px;cursor:pointer;accent-color:#0040E6;">
+      <label for="testEntry" style="font-size:12px;color:#7A6A30;cursor:pointer;">Mark as test entry (will be flagged in the Sheet for deletion — use this for practice submissions)</label>
+    </div>
+
+    <div class="submit-row">
+      <span class="submit-note" id="submitNote">Complete all required questions to submit.</span>
+      <button class="btn-submit" id="submitBtn" onclick="submitPoll()" disabled>Submit response</button>
+    </div>
+    <div class="confirm-box" id="confirmBox">Response recorded — thank you. You can close this tab or submit for another vendor.</div>
+    <div id="errorBox" style="display:none;background:#FAE4E4;border:1px solid #C34143;border-radius:8px;padding:14px 18px;margin-top:14px;font-size:13px;color:#C34143;">
+      Submission failed — please check your connection and try again. If the problem persists, contact Robert.
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── CONFIGURATION ──────────────────────────────────────────────
+  // Paste your deployed Apps Script Web App URL here after setup:
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_Dr-d9JSf9LEblgOWVo7hCKCgDvRB6ly4huFTV6O8BEEG1mV2_-ewsciDTQaA482a/exec';
+  // ───────────────────────────────────────────────────────────────
+
+  const ratings = { comm: 0, quality: 0 };
+  const freqs = { photos: '', sched: '' };
+  const pills = { progress: '', navai: '', qc: '' };
+  let recVal = '';
+  const starLabels = ['','Poor','Below average','Average','Good','Excellent'];
+
+  function setStar(key, val) {
+    ratings[key] = val;
+    document.getElementById('stars-' + key).querySelectorAll('.star-btn').forEach((b, i) => {
+      b.classList.toggle('filled', i < val);
+      b.classList.remove('hovered');
+    });
+    document.getElementById('label-' + key).textContent = starLabels[val];
+    updateProgress();
+  }
+  function hoverStar(key, val) {
+    if (ratings[key] > 0) return;
+    document.getElementById('stars-' + key).querySelectorAll('.star-btn').forEach((b, i) => {
+      b.classList.toggle('hovered', i < val);
+    });
+  }
+  function resetHover(key) {
+    document.getElementById('stars-' + key).querySelectorAll('.star-btn').forEach(b => b.classList.remove('hovered'));
+  }
+  function setFreq(key, btn) {
+    freqs[key] = btn.textContent;
+    document.getElementById('freq-' + key).querySelectorAll('.freq-btn').forEach(b => b.classList.toggle('selected', b === btn));
+    updateProgress();
+  }
+  function setPill(key, btn) {
+    pills[key] = btn.textContent;
+    document.getElementById('pill-' + key).querySelectorAll('.pill-btn').forEach(b => b.classList.toggle('selected', b === btn));
+    updateProgress();
+  }
+  function setRec(val) {
+    recVal = val;
+    document.querySelectorAll('.rec-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelector('.rec-btn.rec-' + val).classList.add('selected');
+    updateProgress();
+  }
+  function updateProgress() {
+    const vendor = document.getElementById('vendorSelect').value;
+    const score = [vendor,ratings.comm,freqs.photos,freqs.sched,pills.progress,ratings.quality,pills.navai,pills.qc,recVal].filter(Boolean).length + 1;
+    document.getElementById('progressBar').style.width = Math.round((score / 10) * 100) + '%';
+    const ready = vendor && ratings.comm && freqs.photos && freqs.sched && pills.progress && ratings.quality && pills.navai && pills.qc && recVal;
+    document.getElementById('submitBtn').disabled = !ready;
+    document.getElementById('submitNote').textContent = ready ? 'Ready to submit.' : 'Complete all required questions to submit.';
+  }
+
+  async function submitPoll() {
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+    document.getElementById('errorBox').style.display = 'none';
+
+    const payload = {
+      timestamp:   new Date().toLocaleString('en-US', {timeZone:'America/Chicago'}),
+      hpmName:     document.getElementById('hpmName').value.trim() || '(not provided)',
+      vendor:      document.getElementById('vendorSelect').value,
+      responsive:  ratings.comm,
+      photoUploads: freqs.photos,
+      schedAdherence: freqs.sched,
+      progressAccuracy: pills.progress,
+      workmanship: ratings.quality,
+      navigateAI:  pills.navai,
+      qcWalk:      pills.qc,
+      recommendation: recVal === 'keep' ? 'Keep — performing well'
+                    : recVal === 'train' ? 'Keep with coaching needed'
+                    : 'Remove from program',
+      comments:    document.getElementById('openText').value.trim(),
+      testEntry:   document.getElementById('testEntry').checked ? 'YES' : 'no'
+    };
+
+    try {
+      const resp = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        mode: 'no-cors'  // Apps Script requires no-cors
+      });
+      // no-cors returns opaque response — assume success if no error thrown
+      document.getElementById('confirmBox').style.display = 'block';
+      btn.textContent = 'Submitted ✓';
+      document.getElementById('progressBar').style.width = '100%';
+      document.getElementById('progressBar').style.background = '#007F5E';
+      document.getElementById('submitNote').textContent = '';
+    } catch (err) {
+      document.getElementById('errorBox').style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Submit response';
+    }
+  }
+</script>
+</body>
+</html>
